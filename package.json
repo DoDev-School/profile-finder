@@ -6,6 +6,6 @@
     "start": "node main.js"
   },
   "dependencies": {
-    "@apify/actor": "^3.0.0"
+    "apify": "^3.0.0"
   }
 }

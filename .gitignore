@@ -1,0 +1,24 @@
+# Node modules
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Apify local storage e datasets
+apify_storage/
+storage/
+datasets/
+
+# Arquivos temporários
+*.tmp
+*.temp
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Ambiente
+.env
