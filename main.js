@@ -34,8 +34,8 @@ async function fetchAllDatasetItems(client, datasetId, { limit = 1000 } = {}) {
   return all;
 }
 
-async function callAndGetItems(actorId, input, { memoryMbytes = 1024 } = {}) {
-  const run = await Actor.call(actorId, input, { memoryMbytes });
+async function callAndGetItems(actorId, input) {
+  const run = await Actor.call(actorId, input); // <-- sem options
   const client = Actor.newClient();
   return fetchAllDatasetItems(client, run.defaultDatasetId);
 }
