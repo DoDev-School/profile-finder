@@ -1,12 +1,6 @@
-// main.js
-import Apify from 'apify';
+// main.js — usando SDK v3 (pacote: apify)
+import { Actor, log } from 'apify';
 
-// log compatível independente da versão
-const log = (Apify.utils && Apify.utils.log) || Apify.log || console;
-
-/**
- * Helpers
- */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function normTags(arr) {
@@ -19,9 +13,8 @@ function containsAnyHashtag(text, tagSet) {
   if (!text) return false;
   const lower = text.toLowerCase();
   for (const t of tagSet) {
-    if (lower.includes(`#${t}`)) return true; // match exato com '#'
-    // fallback: presença da palavra crua (ajuda quando a pessoa escreve sem '#')
-    if (lower.includes(t)) return true;
+    if (lower.includes(`#${t}`)) return true;
+    if (lower.includes(t)) return true; // fallback sem '#'
   }
   return false;
 }
@@ -30,6 +23,8 @@ async function fetchAllDatasetItems(client, datasetId, { limit = 1000 } = {}) {
   const ds = client.dataset(datasetId);
   let offset = 0;
   const all = [];
+  // paginação segura
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     const { items, total } = await ds.listItems({ limit, offset });
     all.push(...items);
@@ -40,12 +35,12 @@ async function fetchAllDatasetItems(client, datasetId, { limit = 1000 } = {}) {
 }
 
 async function callAndGetItems(actorId, input, { memoryMbytes = 1024 } = {}) {
-  const run = await Apify.call(actorId, input, { memoryMbytes });
-  const client = Apify.newClient();
+  const run = await Actor.call(actorId, input, { memoryMbytes });
+  const client = Actor.newClient();
   return fetchAllDatasetItems(client, run.defaultDatasetId);
 }
 
-await Apify.init();
+await Actor.init();
 
 try {
   const {
@@ -57,8 +52,8 @@ try {
     perHashtagPostSample = 200,
     useApifyProxy = true,
     proxyGroups = [],
-    instagramSession, // valor do cookie 'sessionid' (opcional, mas ajuda)
-  } = (await Apify.getInput()) || {};
+    instagramSession,
+  } = (await Actor.getInput()) || {};
 
   if (!hashtags?.length) {
     throw new Error('Informe pelo menos uma hashtag em "hashtags".');
@@ -66,15 +61,13 @@ try {
 
   const tags = normTags(hashtags);
   const tagSet = new Set(tags);
-  const minHashtagHitRate = Math.max(0, Math.min(100, minHashtagHitRatePct)) / 100; // fração 0–1
+  const minHashtagHitRate = Math.max(0, Math.min(100, minHashtagHitRatePct)) / 100;
 
   const proxy = useApifyProxy
     ? { useApifyProxy: true, apifyProxyGroups: proxyGroups?.length ? proxyGroups : undefined }
     : undefined;
 
-  // --------------------------------------------------------------------
-  // 1) Descobrir autores a partir das hashtags (posts recentes por hashtag)
-  // --------------------------------------------------------------------
+  // 1) Descobrir autores a partir das hashtags
   /** @type {Map<string, { username: string, samplePostIds: Set<string>, hashtagsMatched: Set<string> }>} */
   const authorsMap = new Map();
 
@@ -110,29 +103,23 @@ try {
       fromTag++;
     }
 
-    log.info(
-      `#${tag}: ${fromTag} posts mapeados | autores únicos acumulados: ${authorsMap.size}`,
-    );
-
-    // respiro para evitar throttling de runs em sequência
+    log.info(`#${tag}: ${fromTag} posts mapeados | autores únicos: ${authorsMap.size}`);
     await sleep(500);
   }
 
-  // prioriza candidatos que apareceram mais na coleta
+  // priorizar candidatos
   const candidates = [...authorsMap.values()]
     .sort((a, b) => {
       const aScore = a.samplePostIds.size + a.hashtagsMatched.size * 2;
       const bScore = b.samplePostIds.size + b.hashtagsMatched.size * 2;
       return bScore - aScore;
     })
-    .slice(0, maxProfiles * 3); // buffer para filtrar depois
+    .slice(0, maxProfiles * 3);
 
   log.info(`Candidatos para validação: ${candidates.length}`);
 
-  // --------------------------------------------------------------------
-  // 2) Enriquecer perfis + validar seguidores e relevância por hashtag
-  // --------------------------------------------------------------------
-  const outDs = await Apify.openDataset();
+  // 2) Enriquecer e filtrar
+  const outDs = await Actor.openDataset();
   const picked = new Set();
   let accepted = 0;
 
@@ -150,9 +137,7 @@ try {
 
     const profItems = await callAndGetItems('apify/instagram-profile-scraper', profileInput);
 
-    // O run retorna 1 item "profile" + N itens "post"
     let profile = null;
-    /** @type {{ caption?: string; url?: string }[]} */
     const recentPosts = [];
 
     for (const item of profItems) {
@@ -192,7 +177,6 @@ try {
       continue;
     }
 
-    // Monta saída padronizada
     const out = {
       username: uname,
       full_name: profile.fullName ?? profile.full_name ?? null,
@@ -222,8 +206,8 @@ try {
 
   log.info(`Concluído. Perfis aprovados: ${accepted}`);
 } catch (err) {
-  (log.error ? log.error(err) : console.error(err));
+  log.exception ? log.exception(err, 'Falha na execução') : log.error(err);
   throw err;
 } finally {
-  await Apify.exit();
+  await Actor.exit();
 }
