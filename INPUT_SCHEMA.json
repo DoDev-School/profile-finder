@@ -32,13 +32,13 @@
       "minimum": 5,
       "default": 20
     },
-    "minHashtagHitRate": {
-      "title": "Taxa mínima de uso das hashtags",
-      "type": "number",
-      "description": "Proporção mínima (0–1) de posts recentes contendo AO MENOS uma das hashtags fornecidas.",
+    "minHashtagHitRatePct": {
+      "title": "Taxa mínima de uso das hashtags (%)",
+      "type": "integer",
+      "description": "Porcentagem de posts recentes que devem conter ao menos uma das hashtags. Ex.: 20 = 20%",
       "minimum": 0,
-      "maximum": 1,
-      "default": 0.2
+      "maximum": 100,
+      "default": 20
     },
     "perHashtagPostSample": {
       "title": "Amostra de posts por hashtag",
