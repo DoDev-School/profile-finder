@@ -6,6 +6,7 @@
     "hashtags": {
       "title": "Hashtags",
       "type": "array",
+      "editor": "stringList",
       "description": "Lista de hashtags para procurar (sem #). Ex.: [\"modafeminina\", \"acessorios\"]",
       "items": { "type": "string" },
       "minItems": 1
@@ -55,13 +56,14 @@
     "proxyGroups": {
       "title": "Grupos de Proxy (opcional)",
       "type": "array",
+      "editor": "stringList",
       "description": "Ex.: [\"RESIDENTIAL\"]",
       "items": { "type": "string" }
     },
     "instagramSession": {
       "title": "Cookie de sessão do Instagram (opcional)",
       "type": "string",
-      "description": "Se necessário para mais resultados. Formato: valor de sessionid; não inclua o prefixo 'sessionid='."
+      "description": "Valor de sessionid do cookie (sem o prefixo 'sessionid=')."
     }
   },
   "required": ["hashtags"]
