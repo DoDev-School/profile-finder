@@ -118,87 +118,85 @@ try {
 
     log.info(`Candidatos para validação: ${candidates.length}`);
 
-    // 2) Enriquecer perfis em LOTE + filtrar
+    // 2) Enriquecer perfis EM LOTE e salvar somente os campos pedidos
     const outDs = await Actor.openDataset();
 
-    // monte a lista de usernames (buffer para filtrar depois)
-    const allUsernames = candidates.map(c => c.username).slice(0, maxProfiles * 3);
+    // lista de usernames (sem duplicar / vazios)
+    const allUsernames = candidates
+        .map(c => (c.username || '').trim())
+        .filter(Boolean);
 
-    // uma única chamada ao profile scraper com todos os perfis
-    const profItems = await callAndGetItems('apify/instagram-profile-scraper', {
-        usernames: allUsernames,
-        resultsLimit: lookbackPosts,
+    log.info(`Enriquecendo ${allUsernames.length} perfis em lote…`);
+
+    // Chamada única ao profile scraper
+    const profileItems = await callAndGetItems('apify/instagram-profile-scraper', {
+        usernames: allUsernames,                 // <- lote de perfis
         proxy,
-        sessionid: instagramSession || undefined,
+        sessionid: instagramSession || undefined // <- opcional, melhora estabilidade
     });
 
-    // agrupar por username
+    // Indexa perfis por username (minúsculo)
     const profilesByUser = new Map();
-    const postsByUser = new Map();
-
-    for (const item of profItems) {
-        const uname = (item?.username || item?.ownerUsername || item?.owner?.username || '').toLowerCase();
-        if (!uname) continue;
-
-        // item de perfil?
-        if (item?.followersCount !== undefined || item?.type === 'profile') {
-            profilesByUser.set(uname, item);
-            continue;
-        }
-
-        // item de post
-        const arr = postsByUser.get(uname) || [];
-        arr.push({
-            caption: item?.caption || '',
-            url: item?.url || item?.postUrl || (item?.shortCode ? `https://www.instagram.com/p/${item.shortCode}/` : undefined),
-        });
-        postsByUser.set(uname, arr);
+    for (const item of profileItems) {
+        // alguns retornos trazem "username", outros só "url"
+        const key =
+            (item?.username ||
+                (item?.url && item.url.split('/').filter(Boolean).pop()) ||
+                '').toLowerCase();
+        if (!key) continue;
+        profilesByUser.set(key, item);
     }
 
-    // agora percorre candidatos e aplica filtros
+    // (opcional) para escolher uma hashtag "principal" respeitando a ordem do input
+    const inputTagOrder = new Map(tags.map((t, i) => [t, i]));
+
+    // percorre candidatos e salva somente os aprovados por seguidores
     let accepted = 0;
-    const picked = new Set();
 
     for (const cand of candidates) {
         if (accepted >= maxProfiles) break;
 
-        const key = cand.username.toLowerCase();
-        if (picked.has(key)) continue;
+        const uname = (cand.username || '').trim();
+        const key = uname.toLowerCase();
+        const p = profilesByUser.get(key);
+        if (!p) continue;
 
-        const profile = profilesByUser.get(key);
-        if (!profile) continue;
-
-        const followers = profile.followersCount ?? profile.followers ?? 0;
+        const followers = p.followersCount ?? p.followers ?? 0;
         if (followers < minFollowers) continue;
 
-        const analyzed = (postsByUser.get(key) || []).slice(0, lookbackPosts);
-        const hits = analyzed.filter(p => containsAnyHashtag(p.caption, tagSet)).length;
-        const hitRate = analyzed.length ? hits / analyzed.length : 0;
+        // nicho a partir do Instagram (se houver)
+        const niche = p.category_name ?? p.category ?? null;
 
-        if (hitRate < minHashtagHitRate) continue;
+        // hashtag pesquisada (principal): a 1ª do input que também está nas capturas deste usuário
+        const matchedSet = new Set([...(cand.hashtagsMatched || [])].map(s => s.toLowerCase()));
+        let principalTag = null;
+        for (const t of tags) {
+            if (matchedSet.has(t)) { principalTag = t; break; }
+        }
+        // fallback: se nada casou, pega a primeira hashtag do input
+        if (!principalTag) principalTag = tags[0] || null;
 
-        await outDs.pushData({
-            username: cand.username,
-            full_name: profile.fullName ?? profile.full_name ?? null,
-            profile_url: `https://www.instagram.com/${cand.username}/`,
-            followers,
-            following: profile.followingCount ?? null,
-            is_verified: profile.isVerified ?? null,
-            biography: profile.biography ?? null,
-            external_url: profile.externalUrl ?? null,
-            recent_hashtag_hit_rate: Number(hitRate.toFixed(2)), // 0–1
-            hashtags_matched_initial: [...(cand.hashtagsMatched || [])],
-            recent_posts_analyzed: analyzed.length,
-            recent_sample: analyzed.slice(0, 5),
-            scraped_at: new Date().toISOString(),
-        });
+        const itemOut = {
+            // Campos EXIGIDOS:
+            "perfil": `@${uname}`,                               // @username
+            "hashtag_pesquisada": principalTag,                  // hashtag principal
+            "seguidores": followers,                             // número de seguidores
+            "nicho": niche,                                      // nicho (category_name do IG)
+            "link_perfil": `https://www.instagram.com/${uname}/` // link do perfil
 
-        picked.add(key);
+            // (opcionais úteis – pode remover se quiser)
+            // , "nome": p.fullName ?? p.full_name ?? null,
+            // , "hashtags_pesquisadas": Array.from(matchedSet)
+        };
+
+        await outDs.pushData(itemOut);
         accepted++;
-        log.info(`Aceito (${accepted}/${maxProfiles}): @${cand.username} | Followers: ${followers} | HitRate: ${(hitRate * 100).toFixed(1)}%`);
+
+        log.info(`Aceito (${accepted}/${maxProfiles}): ${itemOut.perfil} | Seguidores: ${followers} | Hashtag: #${principalTag}`);
     }
 
     log.info(`Concluído. Perfis aprovados: ${accepted}`);
+
 
 } catch (err) {
     log.exception ? log.exception(err, 'Falha na execução') : log.error(err);
