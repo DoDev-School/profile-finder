@@ -1,0 +1,68 @@
+{
+  "title": "Configuração",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "hashtags": {
+      "title": "Hashtags",
+      "type": "array",
+      "description": "Lista de hashtags para procurar (sem #). Ex.: [\"modafeminina\", \"acessorios\"]",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "maxProfiles": {
+      "title": "Máximo de perfis",
+      "type": "integer",
+      "description": "Quantidade máxima de perfis a retornar.",
+      "minimum": 1,
+      "default": 100
+    },
+    "minFollowers": {
+      "title": "Seguidores mínimos",
+      "type": "integer",
+      "description": "Apenas perfis com pelo menos este número de seguidores serão retornados.",
+      "minimum": 0,
+      "default": 1000
+    },
+    "lookbackPosts": {
+      "title": "Posts recentes analisados",
+      "type": "integer",
+      "description": "Quantos posts recentes por perfil analisar para validar o uso das hashtags.",
+      "minimum": 5,
+      "default": 20
+    },
+    "minHashtagHitRate": {
+      "title": "Taxa mínima de uso das hashtags",
+      "type": "number",
+      "description": "Proporção mínima (0–1) de posts recentes contendo AO MENOS uma das hashtags fornecidas.",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.2
+    },
+    "perHashtagPostSample": {
+      "title": "Amostra de posts por hashtag",
+      "type": "integer",
+      "description": "Para cada hashtag, quantos posts coletar como base inicial para mapear autores.",
+      "minimum": 10,
+      "default": 200
+    },
+    "useApifyProxy": {
+      "title": "Usar Apify Proxy",
+      "type": "boolean",
+      "description": "Recomendado para scrapers do Apify Store.",
+      "default": true
+    },
+    "proxyGroups": {
+      "title": "Grupos de Proxy (opcional)",
+      "type": "array",
+      "description": "Ex.: [\"RESIDENTIAL\"]",
+      "items": { "type": "string" }
+    },
+    "instagramSession": {
+      "title": "Cookie de sessão do Instagram (opcional)",
+      "type": "string",
+      "description": "Se necessário para mais resultados. Formato: valor de sessionid; não inclua o prefixo 'sessionid='."
+    }
+  },
+  "required": ["hashtags"]
+}

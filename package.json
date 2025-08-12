@@ -1,0 +1,11 @@
+{
+  "name": "hashtag-profile-finder",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "@apify/actor": "^3.0.0"
+  }
+}

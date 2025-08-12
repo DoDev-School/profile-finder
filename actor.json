@@ -1,0 +1,12 @@
+{
+  "actorSpecification": 1,
+  "name": "hashtag-profile-finder",
+  "title": "Hashtag → Perfis (com filtro por seguidores)",
+  "description": "Encontra perfis que usam uma ou mais hashtags e filtra por número mínimo de seguidores. Valida relevância medindo a taxa de uso das hashtags nos posts recentes.",
+  "version": "0.1",
+  "meta": {
+    "templateVersion": "0.1"
+  },
+  "dockerfile": "./Dockerfile",
+  "input": "./INPUT_SCHEMA.json"
+}
